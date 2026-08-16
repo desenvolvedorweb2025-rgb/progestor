@@ -208,10 +208,16 @@
 
   @media (min-width: 560px) { .linha-dupla-2 { grid-template-columns: 1fr 1fr; } }
 
-  .cliente-card { display: flex; justify-content: space-between; align-items: center; background: var(--fundo); border: 1px solid var(--borda); border-radius: 12px; padding: 14px 16px; }
+  .cliente-card { display: flex; justify-content: space-between; align-items: center; background: var(--fundo); border: 1px solid var(--borda); border-radius: 12px; padding: 14px 16px; gap: 10px; }
   .cliente-nome { font-size: 15px; font-weight: 700; }
   .cliente-info { font-size: 12.5px; color: var(--tinta-suave); margin-top: 2px; }
   .cliente-vazio { font-size: 13px; color: var(--tinta-suave); text-align: center; padding: 12px 0; }
+  .cliente-acoes { display: flex; gap: 6px; flex-shrink: 0; }
+  .cliente-btn { font-size: 12px; font-weight: 700; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--borda); background: var(--fundo-card); cursor: pointer; font-family: 'Inter', sans-serif; }
+  .cliente-btn.excluir { background: rgba(184, 67, 62, 0.12); color: var(--recusado); border-color: rgba(184, 67, 62, 0.3); }
+  .aviso-edicao { display: none; background: rgba(95, 194, 232, 0.16); border: 1px solid var(--azul-claro); border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--azul-claro-escuro); margin: 0 20px; align-items: center; justify-content: space-between; gap: 10px; }
+  .aviso-edicao.ativo { display: flex; }
+  .aviso-edicao button { background: none; border: none; font-size: 12px; font-weight: 700; color: var(--tinta-suave); cursor: pointer; font-family: 'Inter', sans-serif; }
 
   /* ===================== AGENDA ===================== */
   .semana { display: flex; gap: 8px; padding: 18px 20px 6px; overflow-x: auto; max-width: 560px; margin: 0 auto; }
@@ -508,6 +514,11 @@
     <p>Pessoa física ou jurídica — preencha os dados abaixo.</p>
   </div>
 
+  <div class="aviso-edicao" id="aviso-edicao">
+    <span>✏️ Editando cliente...</span>
+    <button type="button" onclick="cancelarEdicao()">Cancelar edição</button>
+  </div>
+
   <form id="form-cliente">
     <div class="secao">
       <div class="secao-titulo">Tipo de cliente</div>
@@ -598,7 +609,7 @@
       </div>
     </div>
 
-    <button type="submit" class="btn-salvar">Salvar cliente</button>
+    <button type="submit" class="btn-salvar" id="btn-salvar-cliente">Salvar cliente</button>
     <button type="button" class="btn-cancelar" onclick="mostrarTela('inicio')">Cancelar</button>
   </form>
 
@@ -1056,6 +1067,9 @@
   const SUPABASE_KEY = "sb_publishable_gESiBdkzZfxtVdsNzaznhg_hv0SKqtU";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  let clientesCache = [];
+  let clienteEditandoId = null;
+
   async function carregarClientes() {
     const container = document.getElementById('lista-clientes');
     if (!container) return;
@@ -1072,19 +1086,87 @@
       return;
     }
 
-    if (!data || data.length === 0) {
+    clientesCache = data || [];
+
+    if (clientesCache.length === 0) {
       container.innerHTML = '<p class="cliente-vazio">Nenhum cliente cadastrado ainda.</p>';
       return;
     }
 
-    container.innerHTML = data.map(c => `
+    container.innerHTML = clientesCache.map(c => `
       <div class="cliente-card">
         <div>
           <div class="cliente-nome">${c.nome || '(sem nome)'}</div>
           <div class="cliente-info">${c.telefone || ''}${c.cidade ? ' — ' + c.cidade : ''}</div>
         </div>
+        <div class="cliente-acoes">
+          <button type="button" class="cliente-btn" onclick="editarCliente(${c.id})">Editar</button>
+          <button type="button" class="cliente-btn excluir" onclick="excluirCliente(${c.id})">Excluir</button>
+        </div>
       </div>
     `).join('');
+  }
+
+  function editarCliente(id) {
+    const c = clientesCache.find(x => x.id === id);
+    if (!c) return;
+
+    clienteEditandoId = id;
+
+    const tipo = c.tipo === 'pj' ? 'pj' : 'pf';
+    document.querySelector(`input[name="tipo"][value="${tipo}"]`).checked = true;
+    alternarTipo(tipo);
+
+    if (tipo === 'pf') {
+      document.getElementById('nome-pf').value = c.nome || '';
+    } else {
+      document.getElementById('razao-social').value = c.nome || '';
+    }
+    document.getElementById('cpf').value = c.cpf || '';
+    document.getElementById('cnpj').value = c.cnpj || '';
+    document.getElementById('telefone').value = c.telefone || '';
+    document.getElementById('email').value = c.email || '';
+    document.getElementById('cidade').value = c.cidade || '';
+    document.getElementById('estado').value = c.estado || '';
+
+    // endereco vem como "rua, numero - bairro"
+    if (c.endereco) {
+      const partes = c.endereco.match(/^(.*),\s*(.*)\s*-\s*(.*)$/);
+      if (partes) {
+        document.getElementById('rua').value = partes[1] || '';
+        document.getElementById('numero').value = partes[2] || '';
+        document.getElementById('bairro').value = partes[3] || '';
+      }
+    }
+
+    document.getElementById('aviso-edicao').classList.add('ativo');
+    document.getElementById('btn-salvar-cliente').textContent = 'Atualizar cliente';
+    document.querySelector('.page-head h1').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function cancelarEdicao() {
+    clienteEditandoId = null;
+    document.getElementById('form-cliente').reset();
+    alternarTipo('pf');
+    document.getElementById('aviso-edicao').classList.remove('ativo');
+    document.getElementById('btn-salvar-cliente').textContent = 'Salvar cliente';
+  }
+
+  async function excluirCliente(id) {
+    const c = clientesCache.find(x => x.id === id);
+    const nome = c ? (c.nome || '(sem nome)') : 'este cliente';
+    if (!confirm(`Tem certeza que deseja excluir "${nome}"? Essa ação não pode ser desfeita.`)) return;
+
+    const { error } = await supabaseClient.from('clientes').delete().eq('id', id);
+
+    if (error) {
+      alert('Erro ao excluir cliente: ' + error.message);
+      console.error(error);
+      return;
+    }
+
+    if (clienteEditandoId === id) cancelarEdicao();
+    carregarClientes();
   }
 
   document.getElementById('form-cliente').addEventListener('submit', async function(e) {
@@ -1105,17 +1187,36 @@
     const estado = document.getElementById('estado').value;
     const endereco = `${rua}, ${numero} - ${bairro}`;
 
-    const { data, error } = await supabaseClient
-      .from('clientes')
-      .insert([{ tipo, nome, cpf, cnpj, telefone, email, endereco, cidade, estado }]);
+    const payload = { tipo, nome, cpf, cnpj, telefone, email, endereco, cidade, estado };
 
-    if (error) {
-      alert('Erro ao salvar cliente: ' + error.message);
-      console.error(error);
+    if (clienteEditandoId) {
+      const { error } = await supabaseClient
+        .from('clientes')
+        .update(payload)
+        .eq('id', clienteEditandoId);
+
+      if (error) {
+        alert('Erro ao atualizar cliente: ' + error.message);
+        console.error(error);
+      } else {
+        alert('Cliente atualizado com sucesso!');
+        cancelarEdicao();
+        carregarClientes();
+      }
     } else {
-      alert('Cliente salvo com sucesso!');
-      document.getElementById('form-cliente').reset();
-      carregarClientes();
+      const { error } = await supabaseClient
+        .from('clientes')
+        .insert([payload]);
+
+      if (error) {
+        alert('Erro ao salvar cliente: ' + error.message);
+        console.error(error);
+      } else {
+        alert('Cliente salvo com sucesso!');
+        document.getElementById('form-cliente').reset();
+        alternarTipo('pf');
+        carregarClientes();
+      }
     }
   });
 </script>
