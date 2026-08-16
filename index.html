@@ -208,6 +208,11 @@
 
   @media (min-width: 560px) { .linha-dupla-2 { grid-template-columns: 1fr 1fr; } }
 
+  .cliente-card { display: flex; justify-content: space-between; align-items: center; background: var(--fundo); border: 1px solid var(--borda); border-radius: 12px; padding: 14px 16px; }
+  .cliente-nome { font-size: 15px; font-weight: 700; }
+  .cliente-info { font-size: 12.5px; color: var(--tinta-suave); margin-top: 2px; }
+  .cliente-vazio { font-size: 13px; color: var(--tinta-suave); text-align: center; padding: 12px 0; }
+
   /* ===================== AGENDA ===================== */
   .semana { display: flex; gap: 8px; padding: 18px 20px 6px; overflow-x: auto; max-width: 560px; margin: 0 auto; }
   .dia-chip { flex-shrink: 0; width: 52px; text-align: center; padding: 10px 0; border-radius: 14px; border: 1px solid var(--borda); background: var(--fundo-card); cursor: pointer; }
@@ -596,6 +601,13 @@
     <button type="submit" class="btn-salvar">Salvar cliente</button>
     <button type="button" class="btn-cancelar" onclick="mostrarTela('inicio')">Cancelar</button>
   </form>
+
+  <div class="secao" style="margin: 0 20px 24px;">
+    <div class="secao-titulo">Clientes cadastrados</div>
+    <div id="lista-clientes" style="display:flex; flex-direction:column; gap:10px;">
+      <p class="cliente-vazio">Carregando...</p>
+    </div>
+  </div>
 </div>
 
 <!-- ========================= TELA: AGENDA ========================= -->
@@ -967,6 +979,11 @@
     document.querySelectorAll('.menu-item').forEach(m => {
       m.classList.toggle('ativo', m.dataset.tela === nome);
     });
+
+    // sempre que entrar na tela de clientes, recarrega a listagem
+    if (nome === 'clientes' && typeof carregarClientes === 'function') {
+      carregarClientes();
+    }
   }
 
   function alternarTipo(tipo) {
@@ -1031,19 +1048,44 @@
     alert('Contrato criado! (essa é só a tela — o próximo passo é conectar isso a um banco de dados de verdade)');
     fecharModal('contrato');
   });
-
-  document.getElementById('form-cliente').addEventListener('submit', function(e) {
-    e.preventDefault();
-    alert('Cliente salvo! (essa é só a tela — o próximo passo é conectar isso a um banco de dados de verdade)');
-  });
 </script>
 
-  
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const SUPABASE_URL = "https://qpnvmmusnzortasvzyag.supabase.co";
   const SUPABASE_KEY = "sb_publishable_gESiBdkzZfxtVdsNzaznhg_hv0SKqtU";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  async function carregarClientes() {
+    const container = document.getElementById('lista-clientes');
+    if (!container) return;
+    container.innerHTML = '<p class="cliente-vazio">Carregando...</p>';
+
+    const { data, error } = await supabaseClient
+      .from('clientes')
+      .select('*')
+      .order('id', { ascending: false });
+
+    if (error) {
+      container.innerHTML = '<p class="cliente-vazio">Erro ao carregar clientes.</p>';
+      console.error(error);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p class="cliente-vazio">Nenhum cliente cadastrado ainda.</p>';
+      return;
+    }
+
+    container.innerHTML = data.map(c => `
+      <div class="cliente-card">
+        <div>
+          <div class="cliente-nome">${c.nome || '(sem nome)'}</div>
+          <div class="cliente-info">${c.telefone || ''}${c.cidade ? ' — ' + c.cidade : ''}</div>
+        </div>
+      </div>
+    `).join('');
+  }
 
   document.getElementById('form-cliente').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -1073,7 +1115,7 @@
     } else {
       alert('Cliente salvo com sucesso!');
       document.getElementById('form-cliente').reset();
-      mostrarTela('inicio');
+      carregarClientes();
     }
   });
 </script>
