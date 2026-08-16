@@ -1038,5 +1038,44 @@
   });
 </script>
 
+  
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://qpnvmmusnzortasvzyag.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_gESiBdkzZfxtVdsNzaznhg_hv0SKqtU";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  document.getElementById('form-cliente').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const tipo = document.querySelector('input[name="tipo"]:checked').value;
+    const nome = tipo === 'pf'
+      ? document.getElementById('nome-pf').value
+      : document.getElementById('razao-social').value;
+    const cpf = document.getElementById('cpf').value;
+    const cnpj = document.getElementById('cnpj').value;
+    const telefone = document.getElementById('telefone').value;
+    const email = document.getElementById('email').value;
+    const rua = document.getElementById('rua').value;
+    const numero = document.getElementById('numero').value;
+    const bairro = document.getElementById('bairro').value;
+    const cidade = document.getElementById('cidade').value;
+    const estado = document.getElementById('estado').value;
+    const endereco = `${rua}, ${numero} - ${bairro}`;
+
+    const { data, error } = await supabaseClient
+      .from('clientes')
+      .insert([{ tipo, nome, cpf, cnpj, telefone, email, endereco, cidade, estado }]);
+
+    if (error) {
+      alert('Erro ao salvar cliente: ' + error.message);
+      console.error(error);
+    } else {
+      alert('Cliente salvo com sucesso!');
+      document.getElementById('form-cliente').reset();
+      mostrarTela('inicio');
+    }
+  });
+</script>
 </body>
 </html>
