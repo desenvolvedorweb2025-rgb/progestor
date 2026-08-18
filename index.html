@@ -701,11 +701,13 @@
     </div>
   </div>
 
-  <div class="kpis">
-    <div class="kpi destaque-kpi"><div class="kpi-valor">R$ 2.180</div><div class="kpi-label">Aprovados</div></div>
-    <div class="kpi"><div class="kpi-valor">4</div><div class="kpi-label">Pendentes</div></div>
-    <div class="kpi"><div class="kpi-valor">68%</div><div class="kpi-label">Taxa aprovação</div></div>
-  </div>
+  
+    <div class="kpis">
+  <div class="kpi destaque-kpi"><div class="kpi-valor" id="kpi-aprovados">R$ 0</div><div class="kpi-label">Aprovados</div></div>
+  <div class="kpi"><div class="kpi-valor" id="kpi-pendentes">0</div><div class="kpi-label">Pendentes</div></div>
+  <div class="kpi"><div class="kpi-valor" id="kpi-taxa">0%</div><div class="kpi-label">Taxa aprovação</div></div>
+</div>
+  
 
   <div class="filtros">
     <div class="filtro-chip ativo">Todos</div>
@@ -1202,6 +1204,8 @@
     }
  
     orcamentosCache = data || [];
+
+    atualizarKpisOrcamentos();
  
     if (orcamentosCache.length === 0) {
       container.innerHTML = '<p class="cliente-vazio">Nenhum orçamento cadastrado ainda.</p>';
@@ -1236,6 +1240,22 @@
       `;
     }).join('');
   }
+  function atualizarKpisOrcamentos() {
+  const total = orcamentosCache.length;
+  const aprovados = orcamentosCache.filter(o => o.status === 'aprovado');
+  const pendentes = orcamentosCache.filter(o => o.status === 'pendente' || !o.status);
+
+  const somaAprovados = aprovados.reduce((soma, o) => soma + (Number(o.valor) || 0), 0);
+  const taxa = total > 0 ? Math.round((aprovados.length / total) * 100) : 0;
+
+  const elAprovados = document.getElementById('kpi-aprovados');
+  const elPendentes = document.getElementById('kpi-pendentes');
+  const elTaxa = document.getElementById('kpi-taxa');
+
+  if (elAprovados) elAprovados.textContent = 'R$ ' + somaAprovados.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+  if (elPendentes) elPendentes.textContent = pendentes.length;
+  if (elTaxa) elTaxa.textContent = taxa + '%';
+}
  
   async function marcarAprovado(id) {
     const { error } = await supabaseClient
