@@ -713,46 +713,9 @@
     <div class="filtro-chip">Aprovados</div>
     <div class="filtro-chip">Recusados</div>
   </div>
-
-  <div class="lista">
-    <div class="orcamento-card">
-      <div class="orc-topo">
-        <div><div class="orc-numero">ORÇAMENTO Nº 0128</div><div class="orc-titulo">Reforma elétrica completa</div></div>
-        <span class="status-selo pendente">Aguardando</span>
-      </div>
-      <div class="orc-cliente">Ferreira Serviços Ltda — CNPJ 12.345.678/0001-90</div>
-      <div class="orc-rodape"><div class="orc-valor">R$ 1.450,00</div><div class="orc-data">Enviado em 27/07</div></div>
-      <div class="orc-acoes">
-        <a href="#" class="orc-btn principal">Marcar aprovado</a>
-        <a href="#" class="orc-btn secundario">Ver detalhes</a>
-      </div>
-    </div>
-
-    <div class="orcamento-card">
-      <div class="orc-topo">
-        <div><div class="orc-numero">ORÇAMENTO Nº 0127</div><div class="orc-titulo">Instalação de tomadas</div></div>
-        <span class="status-selo aprovado">Aprovado</span>
-      </div>
-      <div class="orc-cliente">Ana Ferreira — CPF 123.456.789-00</div>
-      <div class="orc-rodape"><div class="orc-valor">R$ 350,00</div><div class="orc-data">Aprovado em 25/07</div></div>
-      <div class="orc-acoes">
-        <a href="#" class="orc-btn principal" onclick="mostrarTela('documentos'); return false;">Gerar recibo</a>
-        <a href="#" class="orc-btn secundario">Ver detalhes</a>
-      </div>
-    </div>
-
-    <div class="orcamento-card">
-      <div class="orc-topo">
-        <div><div class="orc-numero">ORÇAMENTO Nº 0126</div><div class="orc-titulo">Manutenção preventiva mensal</div></div>
-        <span class="status-selo recusado">Recusado</span>
-      </div>
-      <div class="orc-cliente">Carlos Mendes — MEI</div>
-      <div class="orc-rodape"><div class="orc-valor">R$ 220,00</div><div class="orc-data">Recusado em 22/07</div></div>
-      <div class="orc-acoes">
-        <a href="#" class="orc-btn secundario">Ver detalhes</a>
-      </div>
-    </div>
-  </div>
+<div class="lista" id="lista-orcamentos">
+  <p class="cliente-vazio">Carregando...</p>
+</div>
 
   <a href="#" class="fab" onclick="abrirModal('orcamento'); return false;">+ Novo orçamento</a>
 </div>
