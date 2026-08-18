@@ -1219,6 +1219,120 @@
       }
     }
   });
+
+  let orcamentosCache = [];
+ 
+  async function carregarOrcamentos() {
+    const container = document.getElementById('lista-orcamentos');
+    if (!container) return;
+    container.innerHTML = '<p class="cliente-vazio">Carregando...</p>';
+ 
+    const { data, error } = await supabaseClient
+      .from('orcamentos')
+      .select('*')
+      .order('id', { ascending: false });
+ 
+    if (error) {
+      container.innerHTML = '<p class="cliente-vazio">Erro ao carregar orçamentos.</p>';
+      console.error(error);
+      return;
+    }
+ 
+    orcamentosCache = data || [];
+ 
+    if (orcamentosCache.length === 0) {
+      container.innerHTML = '<p class="cliente-vazio">Nenhum orçamento cadastrado ainda.</p>';
+      return;
+    }
+ 
+    container.innerHTML = orcamentosCache.map(o => {
+      const statusClasse = o.status === 'aprovado' ? 'aprovado' : (o.status === 'recusado' ? 'recusado' : 'pendente');
+      const statusTexto = o.status === 'aprovado' ? 'Aprovado' : (o.status === 'recusado' ? 'Recusado' : 'Aguardando');
+      const valorFormatado = o.valor ? Number(o.valor).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
+      const dataFormatada = o.data ? new Date(o.data + 'T00:00:00').toLocaleDateString('pt-BR') : '';
+ 
+      return `
+        <div class="orcamento-card">
+          <div class="orc-topo">
+            <div>
+              <div class="orc-numero">ORÇAMENTO Nº ${String(o.id).padStart(4,'0')}</div>
+              <div class="orc-titulo">${o.descricao || '(sem título)'}</div>
+            </div>
+            <span class="status-selo ${statusClasse}">${statusTexto}</span>
+          </div>
+          <div class="orc-cliente">${o.cliente_id || ''}</div>
+          <div class="orc-rodape">
+            <div class="orc-valor">R$ ${valorFormatado}</div>
+            <div class="orc-data">${dataFormatada}</div>
+          </div>
+          <div class="orc-acoes">
+            ${o.status !== 'aprovado' ? `<button type="button" class="orc-btn principal" onclick="marcarAprovado(${o.id})">Marcar aprovado</button>` : ''}
+            <button type="button" class="orc-btn secundario" onclick="excluirOrcamento(${o.id})">Excluir</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+ 
+  async function marcarAprovado(id) {
+    const { error } = await supabaseClient
+      .from('orcamentos')
+      .update({ status: 'aprovado' })
+      .eq('id', id);
+ 
+    if (error) {
+      alert('Erro ao atualizar orçamento: ' + error.message);
+      console.error(error);
+      return;
+    }
+    carregarOrcamentos();
+  }
+ 
+  async function excluirOrcamento(id) {
+    if (!confirm('Tem certeza que deseja excluir este orçamento?')) return;
+ 
+    const { error } = await supabaseClient.from('orcamentos').delete().eq('id', id);
+ 
+    if (error) {
+      alert('Erro ao excluir orçamento: ' + error.message);
+      console.error(error);
+      return;
+    }
+    carregarOrcamentos();
+  }
+ 
+  document.getElementById('form-orcamento').addEventListener('submit', async function(e) {
+    e.preventDefault();
+ 
+    const cliente = document.getElementById('orc-cliente').value;
+    const titulo = document.getElementById('orc-titulo').value;
+    const valorTexto = document.getElementById('orc-valor').value;
+    const desc = document.getElementById('orc-desc').value;
+ 
+    const valorNumerico = parseFloat(valorTexto.replace(/\./g, '').replace(',', '.')) || 0;
+    const hoje = new Date().toISOString().split('T')[0];
+ 
+    const payload = {
+      cliente_id: cliente,
+      descricao: titulo || desc,
+      valor: valorNumerico,
+      status: 'pendente',
+      data: hoje
+    };
+ 
+    const { error } = await supabaseClient.from('orcamentos').insert([payload]);
+ 
+    if (error) {
+      alert('Erro ao salvar orçamento: ' + error.message);
+      console.error(error);
+    } else {
+      alert('Orçamento salvo com sucesso!');
+      document.getElementById('form-orcamento').reset();
+      fecharModal('orcamento');
+      carregarOrcamentos();
+    }
+  });
+ 
 </script>
 </body>
 </html>
