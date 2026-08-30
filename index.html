@@ -928,9 +928,17 @@
       m.classList.toggle('ativo', m.dataset.tela === nome);
     });
 
-    // sempre que entrar na tela de clientes, recarrega a listagem
+        // sempre que entrar na tela de clientes, recarrega a listagem
     if (nome === 'clientes' && typeof carregarClientes === 'function') {
       carregarClientes();
+    }
+    // sempre que entrar na tela de orçamentos, recarrega a listagem
+    if (nome === 'orcamentos' && typeof carregarOrcamentos === 'function') {
+      carregarOrcamentos();
+    }
+    // sempre que entrar na tela de agenda, recarrega a listagem
+    if (nome === 'agenda' && typeof carregarCompromissos === 'function') {
+      carregarCompromissos();
     }
   }
 
