@@ -1283,7 +1283,96 @@
       carregarOrcamentos();
     }
   });
+let compromissosCache = [];
  
+  async function carregarCompromissos() {
+    const container = document.getElementById('lista-compromissos');
+    if (!container) return;
+    container.innerHTML = '<p class="cliente-vazio">Carregando...</p>';
+ 
+    const { data, error } = await supabaseClient
+      .from('compromissos')
+      .select('*')
+      .order('data', { ascending: true })
+      .order('hora', { ascending: true });
+ 
+    if (error) {
+      container.innerHTML = '<p class="cliente-vazio">Erro ao carregar compromissos.</p>';
+      console.error(error);
+      return;
+    }
+ 
+    compromissosCache = data || [];
+ 
+    if (compromissosCache.length === 0) {
+      container.innerHTML = '<p class="cliente-vazio">Nenhum compromisso cadastrado ainda.</p>';
+      return;
+    }
+ 
+    container.innerHTML = compromissosCache.map(c => {
+      const statusClasse = c.status === 'pendente' ? 'pendente' : 'confirmado';
+      const statusTexto = c.status === 'pendente' ? 'Aguardando' : 'Confirmado';
+      const horaFormatada = c.hora ? c.hora.substring(0, 5) : '';
+      const dataFormatada = c.data ? new Date(c.data + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}) : '';
+ 
+      return `
+        <div class="compromisso ${statusClasse}">
+          <div class="compromisso-hora"><div class="hora">${horaFormatada}</div><div class="duracao">${dataFormatada}</div></div>
+          <div class="compromisso-linha"></div>
+          <div class="compromisso-corpo">
+            <div class="compromisso-topo"><h3>${c.titulo || '(sem título)'}</h3><span class="status-selo ${statusClasse}">${statusTexto}</span></div>
+            <div class="compromisso-cliente">${c.cliente || ''}</div>
+            <div class="compromisso-endereco">📍 ${c.endereco || ''}</div>
+            <div style="margin-top:10px; display:flex; gap:6px;">
+              <button type="button" class="cliente-btn excluir" onclick="excluirCompromisso(${c.id})">Excluir</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+ 
+  async function excluirCompromisso(id) {
+    if (!confirm('Tem certeza que deseja excluir este compromisso?')) return;
+ 
+    const { error } = await supabaseClient.from('compromissos').delete().eq('id', id);
+ 
+    if (error) {
+      alert('Erro ao excluir compromisso: ' + error.message);
+      console.error(error);
+      return;
+    }
+    carregarCompromissos();
+  }
+ 
+  document.getElementById('form-compromisso').addEventListener('submit', async function(e) {
+    e.preventDefault();
+ 
+    const titulo = document.getElementById('comp-titulo').value;
+    const cliente = document.getElementById('comp-cliente').value;
+    const data = document.getElementById('comp-data').value;
+    const hora = document.getElementById('comp-hora').value;
+    const duracao = document.getElementById('comp-duracao').value;
+    const endereco = document.getElementById('comp-endereco').value;
+ 
+    const payload = {
+      titulo, cliente, data, hora, duracao, endereco,
+      status: 'confirmado'
+    };
+ 
+    const { error } = await supabaseClient.from('compromissos').insert([payload]);
+ 
+    if (error) {
+      alert('Erro ao salvar compromisso: ' + error.message);
+      console.error(error);
+    } else {
+      alert('Compromisso salvo com sucesso!');
+      document.getElementById('form-compromisso').reset();
+      fecharModal('compromisso');
+      carregarCompromissos();
+    }
+  });
+  
 </script>
 </body>
 </html>
