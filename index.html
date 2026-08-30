@@ -981,13 +981,6 @@
     document.getElementById('modal-' + tipo).classList.remove('aberto');
   }
 
-  document.getElementById('form-compromisso').addEventListener('submit', function(e) {
-    e.preventDefault();
-    alert('Compromisso salvo! (essa é só a tela — o próximo passo é conectar isso a um banco de dados de verdade)');
-    fecharModal('compromisso');
-  });
-
-
   document.getElementById('form-recibo').addEventListener('submit', function(e) {
     e.preventDefault();
     alert('Recibo gerado! (essa é só a tela — o próximo passo é conectar isso a um banco de dados de verdade)');
