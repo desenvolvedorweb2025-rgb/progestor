@@ -719,34 +719,8 @@
     <a href="#" class="acao-rapida" onclick="abrirModal('contrato'); return false;"><div class="icone">📄</div><div class="texto">Novo contrato</div></a>
   </div>
 
-  <div class="lista">
-    <div class="secao-data">Esta semana</div>
-
-    <div class="doc-card" data-tipo="recibo">
-      <div class="doc-icone recibo">🧾</div>
-      <div class="doc-corpo"><div class="doc-titulo">Recibo Nº 0842</div><div class="doc-meta">Ana Ferreira — Instalação elétrica</div></div>
-      <div class="doc-direita"><div class="doc-valor">R$ 350,00</div><div class="doc-status assinado">Pago</div></div>
-    </div>
-
-    <div class="doc-card" data-tipo="contrato">
-      <div class="doc-icone contrato">📄</div>
-      <div class="doc-corpo"><div class="doc-titulo">Contrato de manutenção</div><div class="doc-meta">Ferreira Serviços Ltda</div></div>
-      <div class="doc-direita"><div class="doc-valor">R$ 1.450,00</div><div class="doc-status aguardando">Aguardando assinatura</div></div>
-    </div>
-
-    <div class="secao-data">Semana passada</div>
-
-    <div class="doc-card" data-tipo="recibo">
-      <div class="doc-icone recibo">🧾</div>
-      <div class="doc-corpo"><div class="doc-titulo">Recibo Nº 0839</div><div class="doc-meta">Carlos Mendes — Manutenção preventiva</div></div>
-      <div class="doc-direita"><div class="doc-valor">R$ 220,00</div><div class="doc-status assinado">Pago</div></div>
-    </div>
-
-    <div class="doc-card" data-tipo="contrato">
-      <div class="doc-icone contrato">📄</div>
-      <div class="doc-corpo"><div class="doc-titulo">Contrato de prestação de serviço</div><div class="doc-meta">Ana Ferreira</div></div>
-      <div class="doc-direita"><div class="doc-valor">—</div><div class="doc-status assinado">Assinado</div></div>
-    </div>
+   <div class="lista" id="lista-documentos">
+    <p class="cliente-vazio">Carregando...</p>
   </div>
 </div>
 
@@ -940,6 +914,10 @@
     if (nome === 'agenda' && typeof carregarCompromissos === 'function') {
       carregarCompromissos();
     }
+        // sempre que entrar na tela de documentos, recarrega a listagem
+    if (nome === 'documentos' && typeof carregarDocumentos === 'function') {
+      carregarDocumentos();
+    }
   }
 
   function alternarTipo(tipo) {
@@ -981,17 +959,7 @@
     document.getElementById('modal-' + tipo).classList.remove('aberto');
   }
 
-  document.getElementById('form-recibo').addEventListener('submit', function(e) {
-    e.preventDefault();
-    alert('Recibo gerado! (essa é só a tela — o próximo passo é conectar isso a um banco de dados de verdade)');
-    fecharModal('recibo');
-  });
-
-  document.getElementById('form-contrato').addEventListener('submit', function(e) {
-    e.preventDefault();
-    alert('Contrato criado! (essa é só a tela — o próximo passo é conectar isso a um banco de dados de verdade)');
-    fecharModal('contrato');
-  });
+ 
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1372,7 +1340,154 @@ let compromissosCache = [];
       carregarCompromissos();
     }
   });
-  
+    // ======== DOCUMENTOS (recibos e contratos) ========
+  let documentosCache = [];
+
+  function esc(texto) {
+    return String(texto ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function lerValor(texto) {
+    return parseFloat(String(texto).replace(/\./g, '').replace(',', '.')) || 0;
+  }
+
+  async function carregarDocumentos() {
+    const container = document.getElementById('lista-documentos');
+    if (!container) return;
+    container.innerHTML = '<p class="cliente-vazio">Carregando...</p>';
+
+    const { data, error } = await supabaseClient
+      .from('documentos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      container.innerHTML = '<p class="cliente-vazio">Erro ao carregar documentos.</p>';
+      console.error(error);
+      return;
+    }
+
+    documentosCache = data || [];
+
+    if (documentosCache.length === 0) {
+      container.innerHTML = '<p class="cliente-vazio">Nenhum documento criado ainda.</p>';
+      return;
+    }
+
+    container.innerHTML = documentosCache.map(d => {
+      const ehRecibo = d.tipo === 'recibo';
+      const numero = String(d.numero || 0).padStart(4, '0');
+      const titulo = ehRecibo ? 'Recibo Nº ' + numero : (d.descricao || 'Contrato');
+      const meta = ehRecibo ? (d.cliente || '') + (d.descricao ? ' — ' + d.descricao : '') : (d.cliente || '');
+      const valor = d.valor ? 'R$ ' + Number(d.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '—';
+      const aguardando = d.status === 'aguardando';
+      const statusClasse = aguardando ? 'aguardando' : 'assinado';
+      const statusTexto = ehRecibo ? 'Pago' : (aguardando ? 'Aguardando assinatura' : 'Assinado');
+
+      return `
+        <div class="doc-card" data-tipo="${esc(d.tipo)}">
+          <div class="doc-icone ${esc(d.tipo)}">${ehRecibo ? '🧾' : '📄'}</div>
+          <div class="doc-corpo">
+            <div class="doc-titulo">${esc(titulo)}</div>
+            <div class="doc-meta">${esc(meta)}</div>
+            <div style="margin-top:8px; display:flex; gap:6px;">
+              ${aguardando ? `<button type="button" class="cliente-btn" onclick="marcarAssinado('${d.id}')">Marcar assinado</button>` : ''}
+              <button type="button" class="cliente-btn excluir" onclick="excluirDocumento('${d.id}')">Excluir</button>
+            </div>
+          </div>
+          <div class="doc-direita"><div class="doc-valor">${valor}</div><div class="doc-status ${statusClasse}">${statusTexto}</div></div>
+        </div>
+      `;
+    }).join('');
+
+    // mantém o filtro (Todos / Recibos / Contratos) que estava selecionado
+    const abaAtiva = document.querySelector('#tela-documentos .aba.ativa');
+    if (abaAtiva) abaAtiva.click();
+  }
+
+  async function marcarAssinado(id) {
+    const { error } = await supabaseClient.from('documentos').update({ status: 'assinado' }).eq('id', id);
+    if (error) {
+      alert('Erro ao atualizar contrato: ' + error.message);
+      console.error(error);
+      return;
+    }
+    carregarDocumentos();
+  }
+
+  async function excluirDocumento(id) {
+    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
+    const { error } = await supabaseClient.from('documentos').delete().eq('id', id);
+    if (error) {
+      alert('Erro ao excluir documento: ' + error.message);
+      console.error(error);
+      return;
+    }
+    carregarDocumentos();
+  }
+
+  document.getElementById('form-recibo').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const cliente = document.getElementById('rec-cliente').value.trim();
+    if (!cliente) {
+      alert('Preencha o nome do cliente.');
+      return;
+    }
+
+    const payload = {
+      tipo: 'recibo',
+      cliente: cliente,
+      descricao: document.getElementById('rec-servico').value,
+      valor: lerValor(document.getElementById('rec-valor').value),
+      forma_pagamento: document.getElementById('rec-pagamento').value,
+      status: 'pago'
+    };
+
+    const { error } = await supabaseClient.from('documentos').insert([payload]);
+
+    if (error) {
+      alert('Erro ao gerar recibo: ' + error.message);
+      console.error(error);
+    } else {
+      alert('Recibo gerado com sucesso!');
+      document.getElementById('form-recibo').reset();
+      fecharModal('recibo');
+      carregarDocumentos();
+    }
+  });
+
+  document.getElementById('form-contrato').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const cliente = document.getElementById('con-cliente').value.trim();
+    if (!cliente) {
+      alert('Preencha o nome do cliente.');
+      return;
+    }
+
+    const valorTexto = document.getElementById('con-valor').value;
+
+    const payload = {
+      tipo: 'contrato',
+      cliente: cliente,
+      descricao: document.getElementById('con-titulo').value,
+      valor: valorTexto ? lerValor(valorTexto) : null,
+      status: 'aguardando'
+    };
+
+    const { error } = await supabaseClient.from('documentos').insert([payload]);
+
+    if (error) {
+      alert('Erro ao criar contrato: ' + error.message);
+      console.error(error);
+    } else {
+      alert('Contrato criado com sucesso!');
+      document.getElementById('form-contrato').reset();
+      fecharModal('contrato');
+      carregarDocumentos();
+    }
+  });
 </script>
 </body>
 </html>
