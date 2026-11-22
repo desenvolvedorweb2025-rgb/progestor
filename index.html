@@ -258,8 +258,8 @@
 
   /* ===================== ORÇAMENTOS ===================== */
   .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 18px 20px 6px; max-width: 560px; margin: 0 auto; }
-  .kpi { background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 14px; padding: 14px 12px; text-align: center; }
-  .kpi .kpi-valor { font-family: 'Fraunces', serif; font-size: 19px; font-weight: 700; }
+  .kpi { background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 14px; padding: 14px 8px; text-align: center; min-width: 0; }
+  .kpi .kpi-valor { font-family: 'Fraunces', serif; font-size: 19px; font-weight: 700; white-space: nowrap; }
   .kpi .kpi-label { font-size: 10.5px; color: var(--tinta-suave); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; margin-top: 2px; }
   .kpi.destaque-kpi { background: var(--tinta); border-color: var(--tinta); }
   .kpi.destaque-kpi .kpi-valor, .kpi.destaque-kpi .kpi-label { color: #fff; }
@@ -1953,6 +1953,16 @@ let compromissosCache = [];
       fecharModal('financeiro');
       carregarFinanceiro();
     }
+  });
+  // ======== AJUSTE AUTOMÁTICO DO TAMANHO DOS NÚMEROS (KPIs) ========
+  function ajustarKpi(el) {
+    const n = el.textContent.length;
+    const tam = n <= 8 ? 19 : n <= 10 ? 17 : n <= 12 ? 15 : n <= 14 ? 13 : 11;
+    el.style.fontSize = tam + 'px';
+  }
+  document.querySelectorAll('.kpi-valor').forEach(el => {
+    ajustarKpi(el);
+    new MutationObserver(() => ajustarKpi(el)).observe(el, { childList: true, characterData: true, subtree: true });
   });
 </script>
 </body>
