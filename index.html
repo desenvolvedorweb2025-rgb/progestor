@@ -1184,6 +1184,7 @@
   }
 
   function fecharModal(tipo) {
+    if (tipo === 'financeiro' && typeof sairEdicaoFinanceiro === 'function') sairEdicaoFinanceiro();
     document.getElementById('modal-' + tipo).classList.remove('aberto');
   }
 
@@ -1901,7 +1902,8 @@ let compromissosCache = [];
           <div class="fin-corpo">
             <div class="fin-desc">${esc(l.descricao)}</div>
             <div class="fin-meta">${esc(meta)}</div>
-            <div style="margin-top:8px;">
+            <div style="margin-top:8px; display:flex; gap:6px;">
+              <button type="button" class="cliente-btn" onclick="editarLancamento(${l.id})">Editar</button>
               <button type="button" class="cliente-btn excluir" onclick="excluirLancamento(${l.id})">Excluir</button>
             </div>
           </div>
@@ -1909,6 +1911,31 @@ let compromissosCache = [];
         </div>
       `;
     }).join('');
+  }
+
+  let financeiroEditandoId = null;
+
+  function sairEdicaoFinanceiro() {
+    if (financeiroEditandoId === null) return;
+    financeiroEditandoId = null;
+    document.getElementById('form-financeiro').reset();
+    document.querySelector('#modal-financeiro .modal-topo h2').textContent = 'Novo lançamento';
+    document.querySelector('#form-financeiro .btn-salvar').textContent = 'Salvar lançamento';
+  }
+
+  function editarLancamento(id) {
+    const l = financeiroCache.find(x => x.id === id);
+    if (!l) return;
+    financeiroEditandoId = id;
+    document.getElementById('fin-tipo').value = l.tipo || 'entrada';
+    document.getElementById('fin-descricao').value = l.descricao || '';
+    document.getElementById('fin-valor').value = Number(l.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('fin-data').value = l.data || hojeISO();
+    document.getElementById('fin-categoria').value = l.categoria || '';
+    document.getElementById('fin-pagamento').value = l.forma_pagamento || '';
+    document.querySelector('#modal-financeiro .modal-topo h2').textContent = 'Editar lançamento';
+    document.querySelector('#form-financeiro .btn-salvar').textContent = 'Salvar alterações';
+    abrirModal('financeiro');
   }
 
   async function excluirLancamento(id) {
@@ -1942,13 +1969,16 @@ let compromissosCache = [];
       forma_pagamento: document.getElementById('fin-pagamento').value
     };
 
-    const { error } = await supabaseClient.from('financeiro').insert([payload]);
+    const editando = financeiroEditandoId !== null;
+    const { error } = editando
+      ? await supabaseClient.from('financeiro').update(payload).eq('id', financeiroEditandoId)
+      : await supabaseClient.from('financeiro').insert([payload]);
 
     if (error) {
       alert('Erro ao salvar lançamento: ' + error.message);
       console.error(error);
     } else {
-      alert('Lançamento salvo com sucesso!');
+      alert(editando ? 'Lançamento atualizado com sucesso!' : 'Lançamento salvo com sucesso!');
       document.getElementById('form-financeiro').reset();
       fecharModal('financeiro');
       carregarFinanceiro();
