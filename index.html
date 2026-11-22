@@ -1185,6 +1185,7 @@
 
   function fecharModal(tipo) {
     if (tipo === 'financeiro' && typeof sairEdicaoFinanceiro === 'function') sairEdicaoFinanceiro();
+    if (typeof sairEdicaoGenerica === 'function') sairEdicaoGenerica(tipo);
     document.getElementById('modal-' + tipo).classList.remove('aberto');
   }
 
@@ -1399,6 +1400,7 @@
           </div>
           <div class="orc-acoes">
             ${o.status !== 'aprovado' ? `<button type="button" class="orc-btn principal" onclick="marcarAprovado(${o.id})">Marcar aprovado</button>` : ''}
+            <button type="button" class="orc-btn secundario" onclick="editarOrcamento(${o.id})">Editar</button>
             <button type="button" class="orc-btn secundario" onclick="excluirOrcamento(${o.id})">Excluir</button>
           </div>
         </div>
@@ -1468,13 +1470,17 @@
       data: hoje
     };
  
-    const { error } = await supabaseClient.from('orcamentos').insert([payload]);
+    const editando = modoEdicao.orcamento !== null;
+    const { status: _st, data: _dt, ...dadosEdicao } = payload;
+    const { error } = editando
+      ? await supabaseClient.from('orcamentos').update(dadosEdicao).eq('id', modoEdicao.orcamento)
+      : await supabaseClient.from('orcamentos').insert([payload]);
  
     if (error) {
       alert('Erro ao salvar orçamento: ' + error.message);
       console.error(error);
     } else {
-      alert('Orçamento salvo com sucesso!');
+      alert(editando ? 'Orçamento atualizado com sucesso!' : 'Orçamento salvo com sucesso!');
       document.getElementById('form-orcamento').reset();
       fecharModal('orcamento');
       carregarOrcamentos();
@@ -1521,6 +1527,7 @@ let compromissosCache = [];
             <div class="compromisso-cliente">${c.cliente || ''}</div>
             <div class="compromisso-endereco">📍 ${c.endereco || ''}</div>
             <div style="margin-top:10px; display:flex; gap:6px;">
+              <button type="button" class="cliente-btn" onclick="editarCompromisso(${c.id})">Editar</button>
               <button type="button" class="cliente-btn excluir" onclick="excluirCompromisso(${c.id})">Excluir</button>
             </div>
           </div>
@@ -1557,13 +1564,17 @@ let compromissosCache = [];
       status: 'confirmado'
     };
  
-    const { error } = await supabaseClient.from('compromissos').insert([payload]);
+    const editando = modoEdicao.compromisso !== null;
+    const { status: _st, ...dadosEdicao } = payload;
+    const { error } = editando
+      ? await supabaseClient.from('compromissos').update(dadosEdicao).eq('id', modoEdicao.compromisso)
+      : await supabaseClient.from('compromissos').insert([payload]);
  
     if (error) {
       alert('Erro ao salvar compromisso: ' + error.message);
       console.error(error);
     } else {
-      alert('Compromisso salvo com sucesso!');
+      alert(editando ? 'Compromisso atualizado com sucesso!' : 'Compromisso salvo com sucesso!');
       document.getElementById('form-compromisso').reset();
       fecharModal('compromisso');
       carregarCompromissos();
@@ -1620,6 +1631,7 @@ let compromissosCache = [];
             <div class="doc-titulo">${esc(titulo)}</div>
             <div class="doc-meta">${esc(meta)}</div>
             <div style="margin-top:8px; display:flex; gap:6px;">
+              ${(!ehRecibo && aguardando) ? `<button type="button" class="cliente-btn" onclick="editarContrato('${d.id}')">Editar</button>` : ''}
               ${aguardando ? `<button type="button" class="cliente-btn" onclick="marcarAssinado('${d.id}')">Marcar assinado</button>` : ''}
               <button type="button" class="cliente-btn excluir" onclick="excluirDocumento('${d.id}')">Excluir</button>
             </div>
@@ -1705,13 +1717,17 @@ let compromissosCache = [];
       status: 'aguardando'
     };
 
-    const { error } = await supabaseClient.from('documentos').insert([payload]);
+    const editando = modoEdicao.contrato !== null;
+    const { tipo: _tp, status: _st, ...dadosEdicao } = payload;
+    const { error } = editando
+      ? await supabaseClient.from('documentos').update(dadosEdicao).eq('id', modoEdicao.contrato)
+      : await supabaseClient.from('documentos').insert([payload]);
 
     if (error) {
       alert('Erro ao criar contrato: ' + error.message);
       console.error(error);
     } else {
-      alert('Contrato criado com sucesso!');
+      alert(editando ? 'Contrato atualizado com sucesso!' : 'Contrato criado com sucesso!');
       document.getElementById('form-contrato').reset();
       fecharModal('contrato');
       carregarDocumentos();
@@ -1770,6 +1786,7 @@ let compromissosCache = [];
             <div class="estoque-ctrl">
               <button type="button" class="cliente-btn btn-qtd" onclick="ajustarEstoque(${i.id}, -1)">−</button>
               <button type="button" class="cliente-btn btn-qtd" onclick="ajustarEstoque(${i.id}, 1)">+</button>
+              <button type="button" class="cliente-btn" onclick="editarEstoque(${i.id})">Editar</button>
               <button type="button" class="cliente-btn excluir" onclick="excluirEstoque(${i.id})">Excluir</button>
             </div>
           </div>
@@ -1826,13 +1843,16 @@ let compromissosCache = [];
       preco_venda: venda ? lerValor(venda) : null
     };
 
-    const { error } = await supabaseClient.from('estoque').insert([payload]);
+    const editando = modoEdicao.estoque !== null;
+    const { error } = editando
+      ? await supabaseClient.from('estoque').update(payload).eq('id', modoEdicao.estoque)
+      : await supabaseClient.from('estoque').insert([payload]);
 
     if (error) {
       alert('Erro ao salvar item: ' + error.message);
       console.error(error);
     } else {
-      alert('Item salvo com sucesso!');
+      alert(editando ? 'Item atualizado com sucesso!' : 'Item salvo com sucesso!');
       document.getElementById('form-estoque').reset();
       fecharModal('estoque');
       carregarEstoque();
@@ -1994,6 +2014,78 @@ let compromissosCache = [];
     ajustarKpi(el);
     new MutationObserver(() => ajustarKpi(el)).observe(el, { childList: true, characterData: true, subtree: true });
   });
+  // ======== EDITAR (Orçamentos, Agenda, Estoque e Contratos) ========
+  const modoEdicao = { orcamento: null, compromisso: null, estoque: null, contrato: null };
+  const textosOriginais = {};
+  Object.keys(modoEdicao).forEach(t => {
+    textosOriginais[t] = {
+      titulo: document.querySelector('#modal-' + t + ' .modal-topo h2').textContent,
+      botao: document.querySelector('#form-' + t + ' .btn-salvar').textContent
+    };
+  });
+
+  function entrarEdicao(tipo, id, nome) {
+    modoEdicao[tipo] = id;
+    document.querySelector('#modal-' + tipo + ' .modal-topo h2').textContent = 'Editar ' + nome;
+    document.querySelector('#form-' + tipo + ' .btn-salvar').textContent = 'Salvar alterações';
+    abrirModal(tipo);
+  }
+
+  function sairEdicaoGenerica(tipo) {
+    if (modoEdicao[tipo] === undefined || modoEdicao[tipo] === null) return;
+    modoEdicao[tipo] = null;
+    document.getElementById('form-' + tipo).reset();
+    document.querySelector('#modal-' + tipo + ' .modal-topo h2').textContent = textosOriginais[tipo].titulo;
+    document.querySelector('#form-' + tipo + ' .btn-salvar').textContent = textosOriginais[tipo].botao;
+  }
+
+  function valorParaCampo(n) {
+    return Number(n || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+
+  function editarOrcamento(id) {
+    const o = orcamentosCache.find(x => x.id === id);
+    if (!o) return;
+    document.getElementById('orc-cliente').value = o.cliente_id || '';
+    document.getElementById('orc-titulo').value = o.descricao || '';
+    document.getElementById('orc-valor').value = valorParaCampo(o.valor);
+    document.getElementById('orc-desc').value = '';
+    entrarEdicao('orcamento', id, 'orçamento');
+  }
+
+  function editarCompromisso(id) {
+    const c = compromissosCache.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('comp-titulo').value = c.titulo || '';
+    document.getElementById('comp-cliente').value = c.cliente || '';
+    document.getElementById('comp-data').value = c.data || '';
+    document.getElementById('comp-hora').value = c.hora ? c.hora.substring(0, 5) : '';
+    document.getElementById('comp-duracao').value = c.duracao || '';
+    document.getElementById('comp-endereco').value = c.endereco || '';
+    entrarEdicao('compromisso', id, 'compromisso');
+  }
+
+  function editarEstoque(id) {
+    const i = estoqueCache.find(x => x.id === id);
+    if (!i) return;
+    document.getElementById('est-nome').value = i.nome || '';
+    document.getElementById('est-categoria').value = i.categoria || '';
+    document.getElementById('est-quantidade').value = fmtNum(i.quantidade);
+    document.getElementById('est-minima').value = fmtNum(i.quantidade_minima);
+    document.getElementById('est-unidade').value = i.unidade || 'un';
+    document.getElementById('est-custo').value = i.preco_custo != null ? valorParaCampo(i.preco_custo) : '';
+    document.getElementById('est-venda').value = i.preco_venda != null ? valorParaCampo(i.preco_venda) : '';
+    entrarEdicao('estoque', id, 'item');
+  }
+
+  function editarContrato(id) {
+    const d = documentosCache.find(x => String(x.id) === String(id));
+    if (!d) return;
+    document.getElementById('con-cliente').value = d.cliente || '';
+    document.getElementById('con-titulo').value = d.descricao || '';
+    document.getElementById('con-valor').value = d.valor != null ? valorParaCampo(d.valor) : '';
+    entrarEdicao('contrato', d.id, 'contrato');
+  }
 </script>
 </body>
 </html>
