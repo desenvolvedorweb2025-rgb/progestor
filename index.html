@@ -306,6 +306,21 @@
   .doc-status.aguardando { color: var(--alerta); }
   .secao-data { font-size: 11.5px; font-weight: 700; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 0 2px; }
 
+
+  /* ===================== ESTOQUE ===================== */
+  .estoque-card { display: flex; align-items: center; gap: 12px; background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 16px; padding: 14px 16px; }
+  .estoque-card.baixo { border-color: rgba(184, 67, 62, 0.5); }
+  .estoque-corpo { flex: 1; min-width: 0; }
+  .estoque-nome { font-size: 16px; font-weight: 700; }
+  .estoque-meta { font-size: 12.5px; color: var(--tinta-suave); margin-top: 2px; }
+  .estoque-qtd { text-align: center; flex-shrink: 0; }
+  .estoque-qtd .num { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; }
+  .estoque-qtd .un { font-size: 10.5px; color: var(--tinta-suave); font-weight: 600; text-transform: uppercase; }
+  .estoque-qtd.baixo .num { color: var(--recusado); }
+  .estoque-ctrl { display: flex; gap: 6px; margin-top: 10px; }
+  .btn-qtd { width: 36px; padding: 8px 0; text-align: center; }
+  .menu-inferior .menu-item { padding: 6px 4px; flex: 1; font-size: 11px; }
+
   /* ===================== MENU INFERIOR (navegação entre telas) ===================== */
   .menu-inferior {
     position: fixed;
@@ -427,6 +442,11 @@
           <div class="func-num">Documentos</div>
           <h3>Recibos e contratos</h3>
           <p>Gere recibos em PDF e contratos com assinatura, prontos pra enviar.</p>
+        </div>
+        <div class="func-card" onclick="mostrarTela('estoque')">
+          <div class="func-num">Estoque</div>
+          <h3>Controle de produtos</h3>
+          <p>Saiba o que tem, o que está acabando e quanto vale o seu estoque.</p>
         </div>
         <div class="func-card destaque-func">
           <div class="func-num">Cobrança</div>
@@ -724,6 +744,34 @@
   </div>
 </div>
 
+<!-- ========================= TELA: ESTOQUE ========================= -->
+<div class="tela" id="tela-estoque">
+  <div class="topo-interno">
+    <div class="topo-interno-inner">
+      <div class="topo-esq">
+        <button class="btn-icone" onclick="mostrarTela('inicio')">←</button>
+        <div>
+          <div class="topo-titulo">Estoque</div>
+          <div class="topo-sub">ProGestor</div>
+        </div>
+      </div>
+      <button class="btn-icone destaque" onclick="abrirModal('estoque')">+</button>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi destaque-kpi"><div class="kpi-valor" id="kpi-est-valor">R$ 0</div><div class="kpi-label">Valor em estoque</div></div>
+    <div class="kpi"><div class="kpi-valor" id="kpi-est-itens">0</div><div class="kpi-label">Itens</div></div>
+    <div class="kpi"><div class="kpi-valor" id="kpi-est-baixo">0</div><div class="kpi-label">Estoque baixo</div></div>
+  </div>
+
+  <div class="lista" id="lista-estoque">
+    <p class="cliente-vazio">Carregando...</p>
+  </div>
+
+  <a href="#" class="fab" onclick="abrirModal('estoque'); return false;">+ Novo item</a>
+</div>
+
 <!-- ========================= MENU INFERIOR ========================= -->
 <nav class="menu-inferior" id="menu-inferior" style="display:none;">
   <button class="menu-item ativo" data-tela="inicio" onclick="mostrarTela('inicio')">
@@ -740,6 +788,9 @@
   </button>
   <button class="menu-item" data-tela="documentos" onclick="mostrarTela('documentos')">
     <span class="menu-icone">🧾</span> Documentos
+  </button>
+  <button class="menu-item" data-tela="estoque" onclick="mostrarTela('estoque')">
+    <span class="menu-icone">📦</span> Estoque
   </button>
 </nav>
 
@@ -887,6 +938,58 @@
   </div>
 </div>
 
+<!-- ========================= MODAL: NOVO ITEM DE ESTOQUE ========================= -->
+<div class="modal-overlay" id="modal-estoque">
+  <div class="modal-box">
+    <div class="modal-topo">
+      <h2>Novo item</h2>
+      <button type="button" class="modal-fechar" onclick="fecharModal('estoque')">✕</button>
+    </div>
+    <form id="form-estoque">
+      <div class="secao">
+        <div class="secao-titulo">Dados do item</div>
+        <div class="campo">
+          <label for="est-nome">Nome do produto</label>
+          <input type="text" id="est-nome" placeholder="Ex: Cabo flexível 2,5mm" required>
+        </div>
+        <div class="campo">
+          <label for="est-categoria">Categoria <span class="opcional">(opcional)</span></label>
+          <input type="text" id="est-categoria" placeholder="Ex: Elétrica">
+        </div>
+        <div class="campo">
+          <label for="est-quantidade">Quantidade atual</label>
+          <input type="text" id="est-quantidade" placeholder="Ex: 20" inputmode="decimal">
+        </div>
+        <div class="campo">
+          <label for="est-minima">Quantidade mínima <span class="opcional">(avisa quando estiver acabando)</span></label>
+          <input type="text" id="est-minima" placeholder="Ex: 5" inputmode="decimal">
+        </div>
+        <div class="campo">
+          <label for="est-unidade">Unidade</label>
+          <select id="est-unidade">
+            <option>un</option>
+            <option>kg</option>
+            <option>m</option>
+            <option>litro</option>
+            <option>caixa</option>
+            <option>pacote</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="est-custo">Preço de custo (R$) <span class="opcional">(opcional)</span></label>
+          <input type="text" id="est-custo" placeholder="Ex: 3,50" inputmode="decimal">
+        </div>
+        <div class="campo">
+          <label for="est-venda">Preço de venda (R$) <span class="opcional">(opcional)</span></label>
+          <input type="text" id="est-venda" placeholder="Ex: 6,00" inputmode="decimal">
+        </div>
+      </div>
+      <button type="submit" class="btn-salvar">Salvar item</button>
+      <button type="button" class="btn-cancelar" onclick="fecharModal('estoque')">Cancelar</button>
+    </form>
+  </div>
+</div>
+
 <script>
   function mostrarTela(nome) {
     document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
@@ -917,6 +1020,10 @@
         // sempre que entrar na tela de documentos, recarrega a listagem
     if (nome === 'documentos' && typeof carregarDocumentos === 'function') {
       carregarDocumentos();
+    }
+    // sempre que entrar na tela de estoque, recarrega a listagem
+    if (nome === 'estoque' && typeof carregarEstoque === 'function') {
+      carregarEstoque();
     }
   }
 
@@ -1486,6 +1593,127 @@ let compromissosCache = [];
       document.getElementById('form-contrato').reset();
       fecharModal('contrato');
       carregarDocumentos();
+    }
+  });
+  // ======== ESTOQUE ========
+  let estoqueCache = [];
+
+  function fmtNum(n) {
+    return Number(n || 0).toLocaleString('pt-BR', {maximumFractionDigits: 2});
+  }
+  function fmtMoeda(n) {
+    return 'R$ ' + Number(n || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+
+  async function carregarEstoque() {
+    const container = document.getElementById('lista-estoque');
+    if (!container) return;
+    container.innerHTML = '<p class="cliente-vazio">Carregando...</p>';
+
+    const { data, error } = await supabaseClient
+      .from('estoque')
+      .select('*')
+      .order('nome', { ascending: true });
+
+    if (error) {
+      container.innerHTML = '<p class="cliente-vazio">Erro ao carregar estoque.</p>';
+      console.error(error);
+      return;
+    }
+
+    estoqueCache = data || [];
+
+    // KPIs
+    const valorTotal = estoqueCache.reduce((s, i) => s + Number(i.quantidade || 0) * Number(i.preco_custo || 0), 0);
+    const qtdBaixo = estoqueCache.filter(i => Number(i.quantidade || 0) <= Number(i.quantidade_minima || 0)).length;
+    document.getElementById('kpi-est-valor').textContent = fmtMoeda(valorTotal);
+    document.getElementById('kpi-est-itens').textContent = estoqueCache.length;
+    document.getElementById('kpi-est-baixo').textContent = qtdBaixo;
+
+    if (estoqueCache.length === 0) {
+      container.innerHTML = '<p class="cliente-vazio">Nenhum item no estoque ainda.</p>';
+      return;
+    }
+
+    container.innerHTML = estoqueCache.map(i => {
+      const baixo = Number(i.quantidade || 0) <= Number(i.quantidade_minima || 0);
+      const meta = [i.categoria, i.preco_venda ? 'Venda ' + fmtMoeda(i.preco_venda) : '', 'Mín. ' + fmtNum(i.quantidade_minima)]
+        .filter(Boolean).join(' · ');
+      return `
+        <div class="estoque-card ${baixo ? 'baixo' : ''}">
+          <div class="estoque-corpo">
+            <div class="estoque-nome">${esc(i.nome)}</div>
+            <div class="estoque-meta">${esc(meta)}</div>
+            ${baixo ? '<div class="estoque-meta" style="color:var(--recusado);font-weight:700;">⚠ Estoque baixo</div>' : ''}
+            <div class="estoque-ctrl">
+              <button type="button" class="cliente-btn btn-qtd" onclick="ajustarEstoque(${i.id}, -1)">−</button>
+              <button type="button" class="cliente-btn btn-qtd" onclick="ajustarEstoque(${i.id}, 1)">+</button>
+              <button type="button" class="cliente-btn excluir" onclick="excluirEstoque(${i.id})">Excluir</button>
+            </div>
+          </div>
+          <div class="estoque-qtd ${baixo ? 'baixo' : ''}">
+            <div class="num">${fmtNum(i.quantidade)}</div>
+            <div class="un">${esc(i.unidade || 'un')}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function ajustarEstoque(id, delta) {
+    const item = estoqueCache.find(i => i.id === id);
+    if (!item) return;
+    const nova = Math.max(0, Number(item.quantidade || 0) + delta);
+
+    const { error } = await supabaseClient.from('estoque').update({ quantidade: nova }).eq('id', id);
+
+    if (error) {
+      alert('Erro ao atualizar estoque: ' + error.message);
+      console.error(error);
+      return;
+    }
+    carregarEstoque();
+  }
+
+  async function excluirEstoque(id) {
+    if (!confirm('Tem certeza que deseja excluir este item do estoque?')) return;
+
+    const { error } = await supabaseClient.from('estoque').delete().eq('id', id);
+
+    if (error) {
+      alert('Erro ao excluir item: ' + error.message);
+      console.error(error);
+      return;
+    }
+    carregarEstoque();
+  }
+
+  document.getElementById('form-estoque').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const custo = document.getElementById('est-custo').value;
+    const venda = document.getElementById('est-venda').value;
+
+    const payload = {
+      nome: document.getElementById('est-nome').value.trim(),
+      categoria: document.getElementById('est-categoria').value.trim(),
+      quantidade: lerValor(document.getElementById('est-quantidade').value),
+      quantidade_minima: lerValor(document.getElementById('est-minima').value),
+      unidade: document.getElementById('est-unidade').value,
+      preco_custo: custo ? lerValor(custo) : null,
+      preco_venda: venda ? lerValor(venda) : null
+    };
+
+    const { error } = await supabaseClient.from('estoque').insert([payload]);
+
+    if (error) {
+      alert('Erro ao salvar item: ' + error.message);
+      console.error(error);
+    } else {
+      alert('Item salvo com sucesso!');
+      document.getElementById('form-estoque').reset();
+      fecharModal('estoque');
+      carregarEstoque();
     }
   });
 </script>
