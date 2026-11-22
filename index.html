@@ -401,16 +401,49 @@
     font-size: 17px; cursor: pointer; flex-shrink: 0;
   }
   .modal-box form { display: flex; flex-direction: column; gap: 18px; }
+
+  /* ===================== LOGIN ===================== */
+  #tela-login { position: fixed; inset: 0; z-index: 9999; background: var(--fundo); display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
+  #tela-login .login-box { width: 100%; max-width: 380px; }
+  #tela-login .login-logo { display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Fraunces', serif; font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+  #tela-login .login-sub { text-align: center; color: var(--tinta-suave); font-size: 14px; margin-bottom: 24px; }
+  #tela-login form { display: flex; flex-direction: column; gap: 16px; }
+  #login-erro { display: none; background: rgba(184, 67, 62, 0.12); border: 1px solid rgba(184, 67, 62, 0.3); color: var(--recusado); font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: 10px; }
+  #login-erro.ativo { display: block; }
+  .btn-sair { font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 100px; border: 1px solid var(--borda); background: var(--fundo-card); color: var(--tinta); cursor: pointer; font-family: 'Inter', sans-serif; margin-left: 8px; }
 </style>
 </head>
 <body>
+
+<!-- ========================= TELA: LOGIN ========================= -->
+<div id="tela-login" style="display:none;">
+  <div class="login-box">
+    <div class="login-logo"><span class="logo-mark"></span> ProGestor</div>
+    <div class="login-sub">Entre com seu e-mail e senha</div>
+    <form id="form-login">
+      <div id="login-erro"></div>
+      <div class="campo">
+        <label for="login-email">E-mail</label>
+        <input type="email" id="login-email" autocomplete="username" placeholder="seuemail@exemplo.com" required>
+      </div>
+      <div class="campo">
+        <label for="login-senha">Senha</label>
+        <input type="password" id="login-senha" autocomplete="current-password" placeholder="Sua senha" required>
+      </div>
+      <button type="submit" class="btn-salvar" id="btn-login">Entrar</button>
+    </form>
+  </div>
+</div>
 
 <!-- ========================= TELA: INÍCIO / LANDING ========================= -->
 <div class="tela ativa" id="tela-inicio">
   <header class="landing">
     <div class="header-inner">
       <div class="logo"><span class="logo-mark"></span> ProGestor</div>
-      <button class="btn-entrar" onclick="mostrarTela('clientes')">Entrar</button>
+      <div style="display:flex; align-items:center;">
+        <button class="btn-entrar" onclick="mostrarTela('clientes')">Abrir sistema</button>
+        <button class="btn-sair" onclick="sairDoSistema()">Sair</button>
+      </div>
     </div>
   </header>
 
@@ -851,6 +884,9 @@
   </button>
   <button class="menu-item" data-tela="financeiro" onclick="mostrarTela('financeiro')">
     <span class="menu-icone">💰</span> Financeiro
+  </button>
+  <button class="menu-item" onclick="sairDoSistema()">
+    <span class="menu-icone">🚪</span> Sair
   </button>
 </nav>
 
@@ -2086,6 +2122,58 @@ let compromissosCache = [];
     document.getElementById('con-valor').value = d.valor != null ? valorParaCampo(d.valor) : '';
     entrarEdicao('contrato', d.id, 'contrato');
   }
+  // ======== LOGIN (Supabase Auth) ========
+  function mostrarLogin(mostrar) {
+    document.getElementById('tela-login').style.display = mostrar ? 'flex' : 'none';
+  }
+
+  function mensagemErroLogin(error) {
+    const msg = String(error && error.message || '').toLowerCase();
+    if (msg.includes('invalid login')) return 'E-mail ou senha incorretos.';
+    if (msg.includes('email not confirmed')) return 'E-mail ainda não confirmado.';
+    if (msg.includes('rate limit') || msg.includes('too many')) return 'Muitas tentativas. Espere um pouco e tente de novo.';
+    return 'Não foi possível entrar. Tente novamente.';
+  }
+
+  async function sairDoSistema() {
+    await supabaseClient.auth.signOut();
+    location.reload();
+  }
+
+  document.getElementById('form-login').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const erro = document.getElementById('login-erro');
+    const botao = document.getElementById('btn-login');
+    erro.classList.remove('ativo');
+    botao.disabled = true;
+    botao.textContent = 'Entrando...';
+
+    const { error } = await supabaseClient.auth.signInWithPassword({
+      email: document.getElementById('login-email').value.trim(),
+      password: document.getElementById('login-senha').value
+    });
+
+    botao.disabled = false;
+    botao.textContent = 'Entrar';
+
+    if (error) {
+      erro.textContent = mensagemErroLogin(error);
+      erro.classList.add('ativo');
+      console.error(error);
+      return;
+    }
+    document.getElementById('form-login').reset();
+    mostrarLogin(false);
+  });
+
+  (async function iniciarAuth() {
+    const { data } = await supabaseClient.auth.getSession();
+    mostrarLogin(!data.session);
+    supabaseClient.auth.onAuthStateChange((evento, sessao) => {
+      if (evento === 'SIGNED_OUT') location.reload();
+      if (evento === 'SIGNED_IN' && sessao) mostrarLogin(false);
+    });
+  })();
 </script>
 </body>
 </html>
