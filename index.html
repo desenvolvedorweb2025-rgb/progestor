@@ -411,6 +411,18 @@
   #login-erro { display: none; background: rgba(184, 67, 62, 0.12); border: 1px solid rgba(184, 67, 62, 0.3); color: var(--recusado); font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: 10px; }
   #login-erro.ativo { display: block; }
   .btn-sair { font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 100px; border: 1px solid var(--borda); background: var(--fundo-card); color: var(--tinta); cursor: pointer; font-family: 'Inter', sans-serif; margin-left: 8px; }
+
+  /* ===================== ACESSO / PLANOS ===================== */
+  #faixa-acesso { position: sticky; top: 0; z-index: 300; display: none; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; font-size: 13px; font-weight: 600; text-align: center; }
+  #faixa-acesso.bloqueado { background: var(--tinta); color: #fff; }
+  #faixa-acesso.liberado { background: rgba(26, 122, 62, 0.14); color: var(--sucesso); }
+  #faixa-acesso button { font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 100px; border: none; background: var(--amarelo); color: var(--tinta); cursor: pointer; font-family: 'Inter', sans-serif; }
+  .plano-card { background: var(--fundo-card); border: 1px solid var(--borda); border-radius: 14px; padding: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .plano-card.destaque-plano { border-color: var(--amarelo-escuro); }
+  .plano-nome { font-size: 15px; font-weight: 700; }
+  .plano-desc { font-size: 12.5px; color: var(--tinta-suave); margin-top: 2px; }
+  .plano-preco { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; white-space: nowrap; }
+  .plano-preco small { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: var(--tinta-suave); }
 </style>
 </head>
 <body>
@@ -432,6 +444,38 @@
       </div>
       <button type="submit" class="btn-salvar" id="btn-login">Entrar</button>
     </form>
+  </div>
+</div>
+
+<!-- ========================= FAIXA DE ACESSO ========================= -->
+<div id="faixa-acesso"></div>
+
+<!-- ========================= MODAL: PLANOS ========================= -->
+<div class="modal-overlay" id="modal-planos">
+  <div class="modal-box">
+    <div class="modal-topo">
+      <h2>Libere o acesso</h2>
+      <button type="button" class="modal-fechar" onclick="fecharModal('planos')">✕</button>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <p style="font-size:14px; color:var(--tinta-suave);">Você pode ver todos os módulos, mas precisa de um plano ativo pra criar, editar e excluir.</p>
+      <div class="plano-card">
+        <div>
+          <div class="plano-nome">Passe de 24 horas</div>
+          <div class="plano-desc">Use tudo por 24 horas</div>
+        </div>
+        <div class="plano-preco">R$ 14,90</div>
+      </div>
+      <div class="plano-card destaque-plano">
+        <div>
+          <div class="plano-nome">Assinatura mensal</div>
+          <div class="plano-desc">Uso ilimitado, todo mês</div>
+        </div>
+        <div class="plano-preco">R$ 59,90 <small>/mês</small></div>
+      </div>
+      <button type="button" class="btn-salvar" disabled style="opacity:0.6; cursor:not-allowed;">Pagamento por Pix e cartão em breve</button>
+      <button type="button" class="btn-cancelar" onclick="fecharModal('planos')">Fechar</button>
+    </div>
   </div>
 </div>
 
@@ -2169,11 +2213,92 @@ let compromissosCache = [];
   (async function iniciarAuth() {
     const { data } = await supabaseClient.auth.getSession();
     mostrarLogin(!data.session);
+    if (data.session) carregarAcesso();
     supabaseClient.auth.onAuthStateChange((evento, sessao) => {
       if (evento === 'SIGNED_OUT') location.reload();
-      if (evento === 'SIGNED_IN' && sessao) mostrarLogin(false);
+      if (evento === 'SIGNED_IN' && sessao) { mostrarLogin(false); carregarAcesso(); }
     });
   })();
+  // ======== ACESSO (passe de 24h / assinatura) ========
+  let acessoAtual = null;
+
+  function acessoAtivo() {
+    return !!(acessoAtual && new Date(acessoAtual.fim) > new Date());
+  }
+
+  function exigirAcesso() {
+    if (acessoAtivo()) return true;
+    abrirModal('planos');
+    return false;
+  }
+
+  function atualizarFaixaAcesso() {
+    const faixa = document.getElementById('faixa-acesso');
+    if (!faixa) return;
+
+    if (!acessoAtivo()) {
+      faixa.className = 'bloqueado';
+      faixa.style.display = 'flex';
+      faixa.innerHTML = '<span>🔒 Sem plano ativo: você pode ver tudo, mas não pode criar nem alterar.</span><button type="button" onclick="abrirModal(\'planos\')">Ver planos</button>';
+      return;
+    }
+
+    const fim = new Date(acessoAtual.fim);
+    if (acessoAtual.tipo === 'cortesia' || fim.getFullYear() >= 2090) {
+      faixa.style.display = 'none';
+      return;
+    }
+
+    const quando = fim.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+    faixa.className = 'liberado';
+    faixa.style.display = 'flex';
+    faixa.textContent = (acessoAtual.tipo === 'assinatura' ? '✅ Assinatura ativa até ' : '⏱ Passe ativo até ') + quando;
+  }
+
+  async function carregarAcesso() {
+    const { data, error } = await supabaseClient
+      .from('acessos')
+      .select('*')
+      .gt('fim', new Date().toISOString())
+      .order('fim', { ascending: false })
+      .limit(1);
+
+    if (error) console.error(error);
+    acessoAtual = (!error && data && data.length) ? data[0] : null;
+    atualizarFaixaAcesso();
+  }
+
+  // reavalia a faixa de tempos em tempos (para quando o passe vencer com o sistema aberto)
+  setInterval(atualizarFaixaAcesso, 30000);
+
+  // bloqueia as ações que alteram dados quando não há plano ativo
+  ['editarCliente', 'excluirCliente', 'editarOrcamento', 'marcarAprovado', 'excluirOrcamento',
+   'editarCompromisso', 'excluirCompromisso', 'editarContrato', 'marcarAssinado', 'excluirDocumento',
+   'editarEstoque', 'ajustarEstoque', 'excluirEstoque', 'editarLancamento', 'excluirLancamento'
+  ].forEach(nome => {
+    const original = window[nome];
+    if (typeof original !== 'function') return;
+    window[nome] = function(...args) {
+      if (!exigirAcesso()) return;
+      return original.apply(this, args);
+    };
+  });
+
+  const abrirModalOriginal = window.abrirModal;
+  window.abrirModal = function(tipo) {
+    if (tipo !== 'planos' && !exigirAcesso()) return;
+    return abrirModalOriginal(tipo);
+  };
+
+  // bloqueia o envio dos formulários sem plano ativo
+  document.addEventListener('submit', function(e) {
+    const ids = ['form-cliente', 'form-orcamento', 'form-compromisso', 'form-recibo', 'form-contrato', 'form-estoque', 'form-financeiro'];
+    if (ids.includes(e.target.id) && !acessoAtivo()) {
+      e.preventDefault();
+      e.stopPropagation();
+      abrirModalOriginal('planos');
+    }
+  }, true);
 </script>
 </body>
 </html>
