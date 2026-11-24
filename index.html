@@ -473,7 +473,9 @@
         </div>
         <div class="plano-preco">R$ 59,90 <small>/mês</small></div>
       </div>
-      <button type="button" class="btn-salvar" disabled style="opacity:0.6; cursor:not-allowed;">Pagamento por Pix e cartão em breve</button>
+      <button type="button" class="btn-salvar" id="btn-pagar-avulso" onclick="pagarPlano('avulso')">Comprar passe de 24h — R$ 14,90</button>
+      <button type="button" class="btn-salvar" id="btn-pagar-mensal" onclick="pagarPlano('mensal')">Assinar plano mensal — R$ 59,90</button>
+      <p id="pagamento-msg" style="font-size:13px; color:var(--tinta-suave); text-align:center; min-height:18px;"></p>
       <button type="button" class="btn-cancelar" onclick="fecharModal('planos')">Fechar</button>
     </div>
   </div>
@@ -2267,6 +2269,38 @@ let compromissosCache = [];
     acessoAtual = (!error && data && data.length) ? data[0] : null;
     atualizarFaixaAcesso();
   }
+
+  // ======== PAGAMENTO (Mercado Pago, via Edge Function) ========
+  async function pagarPlano(plano) {
+    const msg = document.getElementById('pagamento-msg');
+    const botoes = [document.getElementById('btn-pagar-avulso'), document.getElementById('btn-pagar-mensal')];
+    botoes.forEach(b => { if (b) b.disabled = true; });
+    if (msg) msg.textContent = 'Abrindo o pagamento...';
+
+    try {
+      const { data, error } = await supabaseClient.functions.invoke('criar-pagamento', { body: { plano } });
+      if (error || !data || !data.checkout_url) {
+        console.error('Erro ao criar pagamento:', error, data);
+        if (msg) msg.textContent = 'Não foi possível abrir o pagamento. Tente de novo.';
+        botoes.forEach(b => { if (b) b.disabled = false; });
+        return;
+      }
+      // abre o checkout do Mercado Pago em outra aba, para o sistema continuar aberto aqui
+      window.open(data.checkout_url, '_blank');
+      if (msg) msg.textContent = 'Pagamento aberto em outra aba. Depois de pagar, volte aqui: o acesso é liberado sozinho.';
+      botoes.forEach(b => { if (b) b.disabled = false; });
+    } catch (e) {
+      console.error(e);
+      if (msg) msg.textContent = 'Erro inesperado. Tente de novo.';
+      botoes.forEach(b => { if (b) b.disabled = false; });
+    }
+  }
+  window.pagarPlano = pagarPlano;
+
+  // ao voltar para esta aba (ex.: depois de pagar), confere se o acesso já foi liberado
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) carregarAcesso();
+  });
 
   // reavalia a faixa de tempos em tempos (para quando o passe vencer com o sistema aberto)
   setInterval(atualizarFaixaAcesso, 30000);
