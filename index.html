@@ -449,6 +449,7 @@
         <input type="password" id="login-senha2" autocomplete="new-password" placeholder="Repita a senha">
       </div>
       <button type="submit" class="btn-salvar" id="btn-login">Entrar</button>
+      <button type="button" id="login-voltar" class="btn-cancelar" onclick="mostrarLogin(false)">← Voltar ao início</button>
       <button type="button" id="login-alternar">Ainda não tem conta? Criar conta</button>
     </form>
   </div>
@@ -494,8 +495,8 @@
     <div class="header-inner">
       <div class="logo"><span class="logo-mark"></span> ProGestor</div>
       <div style="display:flex; align-items:center;">
-        <button class="btn-entrar" onclick="mostrarTela('clientes')">Abrir sistema</button>
-        <button class="btn-sair" onclick="sairDoSistema()">Sair</button>
+        <button class="btn-entrar" onclick="entrarOuCriar(false)">Abrir sistema</button>
+        <button class="btn-sair" id="btn-sair-landing" style="display:none;" onclick="sairDoSistema()">Sair</button>
       </div>
     </div>
   </header>
@@ -506,7 +507,7 @@
       <h1>Tudo em <span class="destaque-txt">um só lugar</span></h1>
       <p><strong>Menos papelada, mais atendimento e organização.</strong></p>
       <div class="hero-ctas">
-        <button class="btn-primario" onclick="mostrarTela('clientes')">Começar agora</button>
+        <button class="btn-primario" onclick="entrarOuCriar(true)">Começar agora</button>
         <button class="btn-secundario" onclick="document.getElementById('funcionalidades').scrollIntoView({behavior:'smooth'})">Ver como funciona →</button>
       </div>
     </div>
@@ -616,7 +617,7 @@
     <div class="container">
       <h2>Organize seu atendimento hoje</h2>
       <p>Sem contrato de fidelidade. Cancele quando quiser.</p>
-      <button class="btn-primario" style="display:inline-block; width:auto;" onclick="mostrarTela('clientes')">Criar minha conta</button>
+      <button class="btn-primario" style="display:inline-block; width:auto;" onclick="entrarOuCriar(true)">Criar minha conta</button>
     </div>
   </section>
 
@@ -2176,6 +2177,28 @@ let compromissosCache = [];
     entrarEdicao('contrato', d.id, 'contrato');
   }
   // ======== LOGIN (Supabase Auth) ========
+  let temSessao = false;
+
+  // abre a tela de login (já na aba "Criar conta" quando cadastro = true)
+  function pedirLogin(cadastro) {
+    definirModoLogin(!!cadastro);
+    mostrarLogin(true);
+  }
+
+  // botões da página de vendas: se já está logado entra no sistema, senão abre o login/cadastro
+  function entrarOuCriar(cadastro) {
+    if (temSessao) { mostrarTela('clientes'); return; }
+    pedirLogin(cadastro);
+  }
+  window.entrarOuCriar = entrarOuCriar;
+
+  // visitante sem login só enxerga a página de vendas
+  const mostrarTelaOriginal = mostrarTela;
+  window.mostrarTela = function(nome) {
+    if (nome !== 'inicio' && !temSessao) { pedirLogin(false); return; }
+    return mostrarTelaOriginal(nome);
+  };
+
   function mostrarLogin(mostrar) {
     document.getElementById('tela-login').style.display = mostrar ? 'flex' : 'none';
   }
@@ -2259,8 +2282,11 @@ let compromissosCache = [];
       }
       if (data.session) {
         document.getElementById('form-login').reset();
+        temSessao = true;
         mostrarLogin(false);
         carregarAcesso();
+        document.getElementById('btn-sair-landing').style.display = '';
+        mostrarTelaOriginal('clientes');
       } else {
         // confirmação de e-mail ligada: precisa clicar no link enviado
         definirModoLogin(false);
@@ -2286,16 +2312,24 @@ let compromissosCache = [];
       return;
     }
     document.getElementById('form-login').reset();
+    temSessao = true;
     mostrarLogin(false);
+    carregarAcesso();
+    document.getElementById('btn-sair-landing').style.display = '';
+    mostrarTelaOriginal('clientes');
   });
 
   (async function iniciarAuth() {
     const { data } = await supabaseClient.auth.getSession();
-    mostrarLogin(!data.session);
-    if (data.session) carregarAcesso();
+    temSessao = !!data.session;
+    mostrarLogin(false);
+    if (temSessao) {
+      document.getElementById('btn-sair-landing').style.display = '';
+      carregarAcesso();
+    }
     supabaseClient.auth.onAuthStateChange((evento, sessao) => {
       if (evento === 'SIGNED_OUT') location.reload();
-      if (evento === 'SIGNED_IN' && sessao) { mostrarLogin(false); carregarAcesso(); }
+      if (evento === 'SIGNED_IN' && sessao) { temSessao = true; carregarAcesso(); }
     });
   })();
   // ======== ACESSO (passe de 24h / assinatura) ========
@@ -2314,6 +2348,7 @@ let compromissosCache = [];
   function atualizarFaixaAcesso() {
     const faixa = document.getElementById('faixa-acesso');
     if (!faixa) return;
+    if (!temSessao) { faixa.style.display = 'none'; return; }
 
     if (!acessoAtivo()) {
       faixa.className = 'bloqueado';
